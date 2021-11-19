@@ -17,13 +17,12 @@
 **/
 
 const { app, nativeTheme, ipcMain, BrowserWindow } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 let win = undefined;
 let registerWin = undefined;
 
-if (require("electron-squirrel-startup")) {
-	return;
-}
+autoUpdater.checkForUpdatesAndNotify();
 
 function createWindow() {
 	win = new BrowserWindow({

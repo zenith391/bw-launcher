@@ -1,32 +1,45 @@
 {
   "name": "bwlauncher",
   "version": "1.0.0",
-  "description": "Launcher for Blocksworld 2",
+  "description": "Launcher for Blocksworld",
+  "homepage": "https://bwsecondary.ddns.net/bw.php",
+  "author": "zenith391",
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "package": "electron-builder --dir",
+    "make": "electron-builder"
   },
   "keywords": [
     "launcher",
     "blocksworld",
     "bw2"
   ],
-  "author": "zenith391",
-  "license": "MIT",
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.54",
     "@electron-forge/maker-deb": "^6.0.0-beta.54",
     "@electron-forge/maker-rpm": "^6.0.0-beta.54",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.54",
     "@electron-forge/maker-zip": "^6.0.0-beta.54",
-    "electron": "^15.0.0"
+    "electron": "^15.0.0",
+    "electron-builder": "^22.13.1"
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
+    "electron-updater": "^4.3.9",
     "extract-zip": "^2.0.1",
     "rpmbuild": "0.0.23"
+  },
+  "build": {
+    "appId": "io.github.zenith391.bw-launcher",
+    "productName": "Wool Launcher",
+    "linux": {
+      "category": "Game"
+    },
+    "publish": [
+      "github"
+    ]
   },
   "config": {
     "forge": {

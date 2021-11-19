@@ -3,9 +3,11 @@ import { OrbitControls } from "./js/threejs/OrbitControls.js";
 import { SVGRenderer } from "./js/threejs/SVGRenderer.js";
 import { OBJLoader } from "./js/threejs/OBJLoader.js";
 
+(async function() {
 const fs = require("fs");
 const worldsPath = bwUserPath() + "/worlds/";
-const colors = JSON.parse(fs.readFileSync("html/colors.json"));
+const colorsFetch = await fetch("colors.json");
+const colors = await colorsFetch.json();
 
 const canvas = document.getElementById("world-canvas");
 
@@ -322,3 +324,4 @@ fs.readdir(worldsPath, (err, files) => {
 		list.appendChild(element);
 	});
 });
+})();
