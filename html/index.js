@@ -1,6 +1,6 @@
 /**
 	Blocksworld Launcher
-    Copyright (C) 2020 zenith391
+    Copyright (C) 2021 zenith391
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,13 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 **/
 
-const { ipcRenderer, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const https = require("https");
 const extract = require("extract-zip");
 const querystring = require("querystring");
+const { ipcRenderer, shell } = require("electron");
 
 const platform = process.platform;
 const blocksworldSteamAppId = "642390";
@@ -40,6 +39,7 @@ let loginCallback = null;
 // Utilities
 
 function homePath() {
+	const os = require("os");
 	if (os.homedir) return os.homedir();
 
 	if (platform == "win32")
@@ -52,7 +52,8 @@ function steamDataPath() {
 	if (platform == "win32")
 		return path.resolve("C:/Program Files (x86)/Steam");
 	else
-		return path.resolve(homePath() + "/.local/share/Steam");
+		//return path.resolve(homePath() + "/.local/share/steam");
+		return path.resolve("/media/randy/Données/home/randy/steam/");
 }
 
 function appDataPath() {
@@ -72,7 +73,7 @@ function bwDocumentsPath() {
 }
 
 function bwUserPath() {
-
+	return path.resolve(bwDocumentsPath() + "/user_76561198427579933"); // TODO: auto-detect
 }
 
 String.prototype.format = function() {
@@ -227,8 +228,16 @@ function apiGet(path, callback) {
 	});
 }
 
+function logout() {
+	localStorage.removeItem("authToken");
+	document.getElementById("login-button").style.display = "block";
+	document.getElementById("logout-button").style.display = "none";
+	document.getElementById("current-account").innerHTML = "";
+}
+
 function initAccountButton(username) {
 	document.getElementById("login-button").style.display = "none";
+	document.getElementById("logout-button").style.display = "block";
 	document.getElementById("current-account").innerHTML = '<a href="#account">' + username + '</a>';
 }
 
@@ -290,18 +299,18 @@ function createBw2Account() {
 	});
 }
 
-function downloadMod() {
-	const select = document.getElementById("version-select");
-	const selected = select.options[select.selectedIndex].text;
-	const url = "https://bwsecondary.ddns.net/download.php?mod=" + currentMod.id + "&version=" + selected;
-	console.log(url);
+async function downloadMod(version) {
+	const url = "https://bwsecondary.ddns.net/download.php?mod=" + currentMod + "&version=" + version;
+	const modResp = await fetch("https://bwsecondary.ddns.net/api/mods/" + currentMod);
+	const mod = await modResp.json();
+	console.log(mod);
 
 	let installPath = "";
-	if (currentMod["install_method"] == 0) {
+	if (mod["install_method"] == 0) {
 		installPath = bwPath + "/Blocksworld/Blocksworld_Data/Managed";
 	} else {
 		console.log(bwDocumentsPath());
-		alert("Please wait for a future version o Blocksworld Launcher to install this type of mod !");
+		alert("Please wait for a future version of Blocksworld Launcher to install this type of mod !");
 		return;
 	}
 
@@ -332,19 +341,19 @@ function downloadMod() {
 					progressBar.innerText = entry.fileName;
 				}});
 				let modJson = {
-					"id": parseInt(currentMod.id),
-					"version": selected
+					"id": parseInt(currentMod),
+					"version": version
 				};
 				let replaced = false;
 				for (key in installedMods.mods) {
-					if (installedMods.mods[key].id == currentMod.id) {
+					if (installedMods.mods[key].id == currentMod) {
 						installedMods.mods[key] = modJson;
 						replaced = true;
 						break;
 					}
 				}
 				if (!replaced) installedMods.mods.push(modJson);
-				loadMod(currentMod.id);
+				loadMod(currentMod);
 				fs.writeFileSync(bwPath + "/mods.json", JSON.stringify(installedMods));
 				fs.unlinkSync(bwPath + "/download.zip");
 				setTimeout(function() {
@@ -378,6 +387,7 @@ const modText = {
 };
 
 async function loadMod(id) {
+	currentMod = id;
 	const actives = document.getElementsByClassName("active");
 	if (actives.length > 0) actives[0].classList.remove("active");
 	document.getElementById("mod-item-" + id).classList.add("active");
@@ -442,13 +452,12 @@ window.addEventListener("DOMContentLoaded", function() {
 });
 
 ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
-	//darkTheme = true;
-	const content = document.getElementById("content");
+	const content = document.getElementById("index-content");
 	const light = document.getElementsByClassName("bg-light");
 	const dark = document.getElementsByClassName("bg-dark");
-
+	
 	const listItems = document.getElementsByClassName("list-group-item");
-	console.log(listItems);
+
 	if (darkTheme) {
 		content.classList.remove("light-theme");
 		content.classList.add("dark-theme");
@@ -456,7 +465,6 @@ ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
 			elem.classList.add("bg-dark");
 			elem.classList.add("text-white");
 		}
-		console.log(listItems);
 		for (elem of listItems) {
 			elem.classList.add("bg-dark");
 			elem.classList.add("text-white");
@@ -484,6 +492,13 @@ ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
 	}
 });
 
+window.onmessage = (e) => {
+	const split = e.data.split(",");
+	if (split[0] == "download") {
+		downloadMod(split[1]);
+	}
+};
+
 const lastAuthToken = localStorage.getItem("authToken");
 if (lastAuthToken) {
 	apiGet("/api/v2/account/validate?auth_token=" + lastAuthToken, function(err, json) {
@@ -506,13 +521,12 @@ loadMods();
 const dateText = document.getElementById("date-text");
 const date = new Date();
 
-if (date.getDate() == 3 && date.getMonth() == 10 && (date.getFullYear() % 4) == 0) { // 3rd November every leap year
-	dateText.innerHTML = "You're in the U.S.A. ? <a href=\"https://www.vote.org/\" target=\"_blank\">Vote!</a>";
-} else if (date.getDate() == 25 && date.getMonth() == 11) { // 25th December
+if (date.getDate() == 25 && date.getMonth() == 11) { // 25th December
 	dateText.innerText = "Merry Christmas!";
 } else if (date.getDate() == 31 && date.getMonth() == 9) { // 31st October
-	const no = date.getFullYear() - 2019;
-	const suffix = no == 1 ? "st" : (no == 2 ? "nd" : (no == 3 ? "rd" : "th"));
+	var no = date.getFullYear() - 2019;
+	const digit = (no >= 10 && no < 20) ? 0 : no % 10;
+	const suffix = digit == 1 ? "st" : (digit == 2 ? "nd" : (digit == 3 ? "rd" : "th"));
 	dateText.innerText = "Happy Halloween and happy " + no + suffix + " birthday BW2";
 } else {
 	dateText.innerText = "Blocksworld Launcher";

@@ -2,7 +2,7 @@ html, body {
 	height: 100%;
 }
 
-#content {
+.content {
 	width: 100%;
 	height: 85%;
 	display: flex;
@@ -13,7 +13,7 @@ html, body {
 	overflow: auto;
 }
 
-#mod-list {
+.item-list {
 	width: 300px;
 	height: 100%;
 	resize: horizontal;
