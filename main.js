@@ -78,11 +78,11 @@ ipcMain.on("open-register-window", function() {
 	})
 });
 
-ipcMain.on("update-download", function(progress) {
-	if (typeof progress === "Number") {
-		win.setProgressBar(progress);
-	}
-});
+//ipcMain.on("update-download", function(progress) {
+//	if (typeof progress === "Number") {
+//		win.setProgressBar(progress);
+//	}
+//});
 
 ipcMain.on("update-done", function() {
 	win.setProgressBar(-1);
