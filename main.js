@@ -17,12 +17,13 @@
 **/
 
 const { app, nativeTheme, ipcMain, BrowserWindow } = require("electron");
-const { autoUpdater } = require("electron-updater");
 const path = require("path");
 let win = undefined;
 let registerWin = undefined;
 
-autoUpdater.checkForUpdatesAndNotify();
+if (require("electron-squirrel-startup")) {
+	return;
+}
 
 function createWindow() {
 	win = new BrowserWindow({
@@ -78,10 +79,9 @@ ipcMain.on("open-register-window", function() {
 	})
 });
 
+
 ipcMain.on("update-download", function(progress) {
-	if (typeof progress === "Number") {
-		win.setProgressBar(progress);
-	}
+	win.setProgressBar(progress);
 });
 
 ipcMain.on("update-done", function() {
@@ -91,3 +91,4 @@ ipcMain.on("update-done", function() {
 ipcMain.on("close-register-window", function() {
 	registerWin.close();
 });
+
