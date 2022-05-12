@@ -326,7 +326,7 @@ async function downloadMod(version) {
 			downloaded += data.length;
 			requestAnimationFrame(function() {
 				var percent = (downloaded / length) * 100;
-				ipcRenderer.send("update-download", parseint(downloaded / length));
+				ipcRenderer.send("update-download", parseInt(downloaded / length));
 				progressBar.style.width = Math.floor(percent) + "%";
 				progressBar.innerText = Math.floor(downloaded/1024) + "KiB / " + Math.floor(length/1024) + "KiB";
 			});
