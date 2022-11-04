@@ -33,12 +33,22 @@ html, body {
 	bottom: 0px;
 }
 
+.navbar {
+	background-color: transparent;
+	border-bottom: 1px solid grey;
+}
+
+.nav-item.active {
+
+}
+
 .light-theme {
 	color: black;
-	background-image: url("img/bg-white.png");
+	/*background-image: url("img/bg-white.png");*/
 }
 
 .dark-theme {
 	color: white;
-	background-image: url("img/bg-black.png");
+	background-color: black;
+	/*background-image: url("img/bg-black.png");*/
 }

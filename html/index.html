@@ -7,17 +7,16 @@
 		<link rel="stylesheet" href="index.css">
 		<script>window.$ = window.jQuery = require("./js/jquery.min.js");</script>
 		<script src="js/bootstrap.min.js"></script>
-		<title>Blocksworld Launcher 1.1</title>
-		<nav id="navbar" class="navbar navbar-expand-sm bg-light navbar-light">
+		<title>Blocksworld Launcher 1.1.1</title>
+		<nav id="navbar" class="navbar navbar-expand-sm navbar-light">
 			<a class="navbar-brand" href="#">
 				<img src="img/icon.png" alt="Logo" style="width:32px">
-				<span id="date-text"></span>
 			</a>
 			<ul class="navbar-nav">
-				<li class="nav-item">
+				<li class="nav-item" id="index-link">
 					<a href="javascript:switchTo('index')" class="nav-link">Mods</a>
 				</li>
-				<li class="nav-item">
+				<li class="nav-item" id="worlds-link">
 					<a href="javascript:switchTo('worlds')" class="nav-link">Worlds</a>
 				</li>
 				<li class="nav-item">
@@ -26,6 +25,9 @@
 				<li class="nav-item">
 					<a href="https://ko-fi.com/zen1th" target="_blank" class="nav-link">Buy me a soda</a>
 				</li>
+        <li class="nav-item float-right">
+          <span class="nav-link" id="date-text"></span>
+        </li>
 			</ul>
 			<button class="navbar-toggler" type="button">
 				<span class="navbar-toggler-icon"></span>
@@ -33,16 +35,22 @@
 		</nav>
 	</head>
 	<body>
-		<script src="index.js" defer></script>
+		<script src="index.js" type="module" defer></script>
 		<script src="worlds.js" type="module" defer></script>
 		<script src="switcher.js" defer></script>
 		<div id="index-content" class="content">
-			<ul class="float-left list-group list-group-flush item-list" id="mod-list">
+			<div class="container">
+				<h2>My Mods</h2>
+        <a href="javascript:switchTo('add-mod')"><button>Add mod</button></a>
+			</div>
+		</div>
+    <div id="add-mod-content" class="content">
+      <ul class="float-left list-group list-group-flush item-list" id="mod-list">
 			</ul>
 			<div class="float-left" id="mod-description" style="opacity: 100%; padding: 0; overflow: hidden;">
 				<iframe id="mod-frame" style="width: 100%; height: 100%; border: none; margin: 0; padding: 0;"></iframe>
 			</div>
-		</div>
+    </div>
 		<div id="worlds-content" class="content">
 			<ul class="float-left list-group list-group-flush item-list" id="world-list">
 			</ul>
@@ -76,6 +84,7 @@
 								</label>
 							</div>
 							<button type="submit" class="btn btn-primary">Login</button>
+							<a target="_blank" href="https://bwsecondary.ddns.net/reset_password.php">Forgot your password?</span></a>
 							<p>Don't have a Blocksworld Wool account? <button class="btn" data-dismiss="modal" onclick="openRegisterWindow()">Register!</button></p>
 						</form>
 					</div>
@@ -830,11 +839,11 @@ Libraries used by the Blocksworld Launcher:
 		</div>
 	</body>
 	<footer class="bottom clearfix bg-light">
-		<div class="float-left m-3">
+		<div class="float-left m-3" style="min-width: fit-content;">
 			<img src="img/user.svg" style="width: 32px; display: inline-block;">
-			<button type="button" id="logout-button" class="btn btn-danger" onclick="logout()" style="display: none">Logout</button>
 			<button type="button" id="login-button" class="btn btn-primary" onclick="openLoginModal()">Login</button>
 			<span id="current-account"></span>
+			<button type="button" id="logout-button" class="btn btn-danger" onclick="logout()" style="display: none">Logout</button>
 		</div>
 		<div class="float-right m-3">
 			<span id="player" class="mr-2">...</span>

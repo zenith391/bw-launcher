@@ -22,9 +22,9 @@ const https = require("https");
 const extract = require("extract-zip");
 const querystring = require("querystring");
 const { ipcRenderer, shell } = require("electron");
+import { steamDataPath, appDataPath, bwDocumentsPath, blocksworldSteamAppId } from "./utils.js";
 
 const platform = process.platform;
-const blocksworldSteamAppId = "642390";
 let launchPlatform = "self";
 let currentMod = null;
 let installedMods = null;
@@ -37,45 +37,6 @@ let userAuthToken = null;
 let loginCallback = null;
 
 // Utilities
-
-function homePath() {
-	const os = require("os");
-	if (os.homedir) return os.homedir();
-
-	if (platform == "win32")
-		return path.resolve(process.env.USERPROFILE);
-	else
-		return path.resolve(process.env.HOME);
-}
-
-function steamDataPath() {
-	if (platform == "win32")
-		return path.resolve("C:/Program Files (x86)/Steam");
-	else
-		//return path.resolve(homePath() + "/.local/share/steam");
-		return path.resolve("/media/randy/Données/home/randy/steam/");
-}
-
-function appDataPath() {
-	if (platform == "win32")
-		return path.resolve(process.env.APPDATA);
-	else if (platform == "darwin")
-		return path.resolve(path.join(homePath(), "Library/Application Support/"));
-	else
-		return process.env.XDG_CONFIG_HOME ? process.env.XDG_CONFIG_HOME : path.resolve(path.join(homePath(), ".config/"));
-}
-
-function bwDocumentsPath() {
-	if (platform == "win32")
-		return path.resolve(homePath() + "/Documents/blocksworld_develop");
-	else
-		return steamDataPath() + "/steamapps/compatdata/" + blocksworldSteamAppId + "/pfx/drive_c/users/steamuser/My Documents/blocksworld_develop"
-}
-
-function bwUserPath() {
-	return path.resolve(bwDocumentsPath() + "/user_76561198427579933"); // TODO: auto-detect
-}
-
 String.prototype.format = function() {
 	let result = this;
 	for (let k in arguments) {
@@ -161,9 +122,7 @@ function launchBlocksworld() {
 				}
 			}
 		}
-		if (platform == "darwin") {
-			alert("Sorry! For now the self launching only works on Windows and Linux!");
-		} else if (userAuthToken == null) {
+		if (userAuthToken == null) {
 			openLoginModal(launchBlocksworld);
 		} else {
 			fs.writeFileSync(bwPath + "/Blocksworld/auth_token.txt", userAuthToken.toString());
@@ -177,7 +136,16 @@ function launchBlocksworld() {
 					}
 				});
 			} else if (platform == "linux") {
-				alert("Please launch Blocksworld using Steam Proton or Wine!");
+				//alert("Please launch Blocksworld using Steam Proton or Wine!");
+				console.log("wine");
+				// TODO: currently not working
+				shell.openPath("wine \"" + bwPath + "/Blocksworld/Blocksworld.exe\"").then(function(err) {
+					$("#standaloneLaunchingModal").modal("hide");
+					if (err !== "" && err !== undefined && err !== null) {
+						shell.beep();
+						alert("Error: " + err);
+					}
+				});
 			} else {
 				alert("Sorry! For now the self launching only works on Windows and Linux!");
 			}
@@ -230,14 +198,14 @@ function apiGet(path, callback) {
 
 function logout() {
 	localStorage.removeItem("authToken");
-	document.getElementById("login-button").style.display = "block";
+	document.getElementById("login-button").style.display = "inline";
 	document.getElementById("logout-button").style.display = "none";
 	document.getElementById("current-account").innerHTML = "";
 }
 
 function initAccountButton(username) {
 	document.getElementById("login-button").style.display = "none";
-	document.getElementById("logout-button").style.display = "block";
+	document.getElementById("logout-button").style.display = "inline";
 	document.getElementById("current-account").innerHTML = '<a href="#account">' + username + '</a>';
 }
 
@@ -316,10 +284,12 @@ async function downloadMod(version) {
 
 	$("#downloadModal").modal();
 	https.get(url, function (res) {
-		const length = parseInt(res.headers["content-length"]);
-		var out = fs.createWriteStream(bwPath + "/download.zip");
-		var progressBar = document.getElementById("download-progress");
-		var downloaded = 0;
+		let length = parseInt(res.headers["content-length"]);
+		if (length === undefined || isNaN(length)) length = 1;
+
+		let out = fs.createWriteStream(bwPath + "/download.zip");
+		let progressBar = document.getElementById("download-progress");
+		let downloaded = 0;
 
 		res.on("data", async function (data) {
 			out.write(data);
@@ -398,6 +368,7 @@ async function loadMod(id) {
 		iframe.contentWindow.postMessage("embedded", "*");
 	};
 }
+global.loadMod = loadMod;
 
 async function loadMods() {
 	if (!fs.existsSync(bwPath + "/mods.json")) {
@@ -411,7 +382,7 @@ async function loadMods() {
 	if (response.ok) {
 		let json = await response.json();
 		let list = document.getElementById("mod-list");
-		for (mod of json.mods) {
+		for (const mod of json.mods) {
 			let pill = document.createElement("span");
 			let pillText = document.createTextNode(mod.downloads.toString());
 			pill.classList.add("badge");
@@ -451,7 +422,8 @@ window.addEventListener("DOMContentLoaded", function() {
 	}
 });
 
-ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
+// TODO: use @prefers css rules
+/*ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
 	const content = document.getElementById("index-content");
 	const light = document.getElementsByClassName("bg-light");
 	const dark = document.getElementsByClassName("bg-dark");
@@ -490,7 +462,7 @@ ipcRenderer.on("change-dark-theme", function(event, darkTheme) {
 		elem.classList.remove("bg-dark");
 		elem.classList.remove("text-white");
 	}
-});
+});*/
 
 window.onmessage = (e) => {
 	const split = e.data.split(",");
@@ -528,6 +500,4 @@ if (date.getDate() == 25 && date.getMonth() == 11) { // 25th December
 	const digit = (no >= 10 && no < 20) ? 0 : no % 10;
 	const suffix = digit == 1 ? "st" : (digit == 2 ? "nd" : (digit == 3 ? "rd" : "th"));
 	dateText.innerText = "Happy Halloween and happy " + no + suffix + " birthday BW2";
-} else {
-	dateText.innerText = "Blocksworld Launcher";
 }

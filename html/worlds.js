@@ -2,6 +2,7 @@ import * as THREE from "./js/threejs/three.module.js";
 import { OrbitControls } from "./js/threejs/OrbitControls.js";
 import { SVGRenderer } from "./js/threejs/SVGRenderer.js";
 import { OBJLoader } from "./js/threejs/OBJLoader.js";
+import { bwUserPath } from "./utils.js";
 
 (async function() {
 const fs = require("fs");
@@ -11,18 +12,7 @@ const colors = await colorsFetch.json();
 
 const canvas = document.getElementById("world-canvas");
 
-function createSvgRenderer() {
-	const svg = new SVGRenderer();
-	canvas.parentElement.appendChild(svg.domElement);
-	svg.domElement.style.width = "100%";
-	svg.domElement.style.height = "100%";
-	canvas.style.display = "none";
-	return svg;
-}
-
 const renderer = new THREE.WebGLRenderer({ canvas });
-//const renderer = createSvgRenderer();
-//renderer.shadowMap.enabled = true;
 const camera = new THREE.PerspectiveCamera(70, 2, 1, 10000);
 camera.position.y = 0.5;
 camera.position.z = 5;
