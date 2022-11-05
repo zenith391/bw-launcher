@@ -1,0 +1,5 @@
+- Fixed once and for all the 'Error processing argument at index 0' error
+- Added a 'My Mods' page to see which mods you have
+- Added a Home page with the latest news about BW2
+- Play button is now more visible
+- Cleanup the navbar

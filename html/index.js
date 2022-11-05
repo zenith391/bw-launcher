@@ -21,8 +21,10 @@ const path = require("path");
 const https = require("https");
 const extract = require("extract-zip");
 const querystring = require("querystring");
+const child_process = require("child_process");
 const { ipcRenderer, shell } = require("electron");
 import { steamDataPath, appDataPath, bwDocumentsPath, blocksworldSteamAppId } from "./utils.js";
+import { createApp } from './js/vue.esm-browser.js'
 
 const platform = process.platform;
 let launchPlatform = "self";
@@ -32,6 +34,9 @@ let installedMods = null;
 const steamPath = steamDataPath();
 const steamBlocksworldPath = steamPath + "/steamapps/common/Blocksworld";
 const bwPath = appDataPath() + "/Blocksworld Launcher";
+if (fs.existsSync(bwPath + "/mods.json")) {
+	installedMods = JSON.parse(fs.readFileSync(bwPath + "/mods.json"));
+}
 
 let userAuthToken = null;
 let loginCallback = null;
@@ -54,6 +59,7 @@ function launchBlocksworldSteam() {
 		}, 10000);
 	});
 }
+global.launchBlocksworldSteam = launchBlocksworldSteam;
 
 const blocksworldDownload = "https://bwsecondary.ddns.net/uploads/Blocksworld.zip";
 function launchBlocksworld() {
@@ -64,6 +70,7 @@ function launchBlocksworld() {
 			alert("Sorry! For now the self launching only works on Windows and Linux!");
 		} else {
 			https.get(blocksworldDownload, function (res) {
+				document.getElementById("downloaded-text").innerText = "Downloading Blocksworld, please wait..";
 				$("#downloadModal").modal();
 				const length = parseInt(res.headers["content-length"]);
 				fs.mkdirSync(bwPath, {recursive: true});
@@ -75,8 +82,9 @@ function launchBlocksworld() {
 					out.write(data);
 					downloaded += data.length;
 					requestAnimationFrame(function() {
-						var percent = (downloaded / length) * 100;
-						progressBar.style.width = Math.floor(percent) + "%";
+						const percent = (downloaded / length) * 100;
+						ipcRenderer.send("update-download", percent);
+						progressBar.style.width = percent + "%";
 						progressBar.innerText = Math.floor(downloaded/1024/1024) + "MiB / " + Math.floor(length/1024/1024) + "MiB";
 					});
 
@@ -112,35 +120,39 @@ function launchBlocksworld() {
 			});
 		}
 	} else if (launchPlatform == "self") {
-		for (key in installedMods.mods) {
+		let hasExdilin = false;
+		for (const key in installedMods.mods) {
 			let mod = installedMods.mods[key];
 			if (mod.id == 0) {
-				if (mod.version == "0.4.1") {
-					alert("Download Exdilin 0.6 or above in order to use No-Steam");
-					loadMod(0);
-					return;
+				if (mod.version != "0.4.1") {
+					hasExdilin = true;
 				}
 			}
 		}
+		if (!hasExdilin) {
+			alert("You need Exdilin in order to play Blocksworld!");
+			switchTo("add-mod");
+			loadMod(0);
+			return;
+		}
+
 		if (userAuthToken == null) {
 			openLoginModal(launchBlocksworld);
 		} else {
 			fs.writeFileSync(bwPath + "/Blocksworld/auth_token.txt", userAuthToken.toString());
 			if (platform == "win32") {
-				$("#standaloneLaunchingModal").modal();
+				$("#standaloneLaunching").modal();
 				shell.openPath(bwPath + "/Blocksworld/Blocksworld.exe").then(function(err) {
-					$("#standaloneLaunchingModal").modal("hide");
+					$("#standaloneLaunching").modal("hide");
 					if (err !== "" && err !== undefined && err !== null) {
 						shell.beep();
 						alert("Error: " + err);
 					}
 				});
 			} else if (platform == "linux") {
-				//alert("Please launch Blocksworld using Steam Proton or Wine!");
-				console.log("wine");
-				// TODO: currently not working
-				shell.openPath("wine \"" + bwPath + "/Blocksworld/Blocksworld.exe\"").then(function(err) {
-					$("#standaloneLaunchingModal").modal("hide");
+				$("#standaloneLaunching").modal();
+				setTimeout(() => { $("#standaloneLaunching").modal("hide") }, 10000);
+				child_process.exec("nohup wine \"" + bwPath + "/Blocksworld/Blocksworld.exe\"", function(err) {
 					if (err !== "" && err !== undefined && err !== null) {
 						shell.beep();
 						alert("Error: " + err);
@@ -152,6 +164,7 @@ function launchBlocksworld() {
 		}
 	}
 }
+global.launchBlocksworld = launchBlocksworld;
 
 const serverPath = "https://bwsecondary.ddns.net:8080";
 function apiPost(path, post, callback) {
@@ -202,6 +215,7 @@ function logout() {
 	document.getElementById("logout-button").style.display = "none";
 	document.getElementById("current-account").innerHTML = "";
 }
+global.logout = logout;
 
 function initAccountButton(username) {
 	document.getElementById("login-button").style.display = "none";
@@ -243,6 +257,7 @@ function login() {
 		}
 	});
 }
+global.login = login;
 
 function createBw2Account() {
 	const username = document.getElementById("login-username").value;
@@ -266,6 +281,7 @@ function createBw2Account() {
 		}
 	});
 }
+global.createBw2Account = createBw2Account
 
 async function downloadMod(version) {
 	const url = "https://bwsecondary.ddns.net/download.php?mod=" + currentMod + "&version=" + version;
@@ -282,6 +298,7 @@ async function downloadMod(version) {
 		return;
 	}
 
+	document.getElementById("downloaded-text").innerText = "Downloading " + mod.name + ", please wait..";
 	$("#downloadModal").modal();
 	https.get(url, function (res) {
 		let length = parseInt(res.headers["content-length"]);
@@ -296,7 +313,7 @@ async function downloadMod(version) {
 			downloaded += data.length;
 			requestAnimationFrame(function() {
 				var percent = (downloaded / length) * 100;
-				ipcRenderer.send("update-download", parseInt(downloaded / length));
+				ipcRenderer.send("update-download", percent);
 				progressBar.style.width = Math.floor(percent) + "%";
 				progressBar.innerText = Math.floor(downloaded/1024) + "KiB / " + Math.floor(length/1024) + "KiB";
 			});
@@ -306,16 +323,16 @@ async function downloadMod(version) {
 			ipcRenderer.send("update-done");
 			out.uncork();
 			out.end();
-			requestAnimationFrame(async function() {
+			(async function() {
+				document.getElementById("downloaded-text").innerText = "Installing " + mod.name + ", please wait..";
 				await extract(bwPath + "/download.zip", { dir: installPath, onEntry: function(entry, zipFile) {
 					progressBar.innerText = entry.fileName;
 				}});
-				let modJson = {
-					"id": parseInt(currentMod),
-					"version": version
-				};
+				let modJson = mod;
+				modJson.id = parseInt(currentMod);
+				modJson.version = version;
 				let replaced = false;
-				for (key in installedMods.mods) {
+				for (const key in installedMods.mods) {
 					if (installedMods.mods[key].id == currentMod) {
 						installedMods.mods[key] = modJson;
 						replaced = true;
@@ -329,7 +346,7 @@ async function downloadMod(version) {
 				setTimeout(function() {
 					$("#downloadModal").modal("hide");
 				}, 500);
-			});
+			})();
 		});
 	});
 }
@@ -345,10 +362,12 @@ function openLoginModal(cb) {
 	document.getElementById("login-password").value = "";
 	$("#loginModal").modal();
 }
+global.openLoginModal = openLoginModal;
 
 function openRegisterWindow() {
 	ipcRenderer.send("open-register-window");
 }
+global.openRegisterWindow = openRegisterWindow;
 
 const modText = {
 	notInstalled: "You have not installed {0} yet.",
@@ -372,11 +391,12 @@ global.loadMod = loadMod;
 
 async function loadMods() {
 	if (!fs.existsSync(bwPath + "/mods.json")) {
+		installedMods = {"mods":[]};
 		fs.writeFileSync(bwPath + "/mods.json", JSON.stringify({
 			"mods": []
 		}));
+		loadMyMods();
 	}
-	installedMods = JSON.parse(fs.readFileSync(bwPath + "/mods.json"));
 
 	let response = await fetch("https://bwsecondary.ddns.net/api/mods/list");
 	if (response.ok) {
@@ -407,17 +427,28 @@ async function loadMods() {
 	}
 }
 
+async function loadMyMods() {
+	createApp({
+		data() {
+			return {
+				mods: installedMods.mods,
+			};
+		}
+	}).mount("#my-mods-list");
+}
+if (installedMods !== null) loadMyMods();
+
 window.addEventListener("DOMContentLoaded", function() {
 	if (fs.existsSync(steamBlocksworldPath) && false) {
 		document.getElementById("player").innerText = "Launch using Steam";
 		document.getElementById("steam-button").style.display = "none";
 		launchPlatform = "steam";
 	} else if (!fs.existsSync(bwPath + "/Blocksworld/Blocksworld_Data/Managed") || !fs.existsSync(bwPath + "/Blocksworld/Blocksworld.exe")) {
-		document.getElementById("player").innerText = "";
+		//document.getElementById("player").innerText = "";
 		document.getElementById("play-button").innerText = "Download and play";
 		launchPlatform = "self-download";
 	} else {
-		document.getElementById("player").innerText = "Launch using account";
+		//document.getElementById("player").innerText = "Launch using account";
 		launchPlatform = "self";
 	}
 });

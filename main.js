@@ -80,7 +80,7 @@ ipcMain.on("open-register-window", function() {
 });
 
 
-ipcMain.on("update-download", function(progress) {
+ipcMain.on("update-download", function(event, progress) {
 	win.setProgressBar(progress);
 });
 
