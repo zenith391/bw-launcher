@@ -38,22 +38,23 @@
 		<div id="index-content" class="content">
 			<iframe style="width: 100%; height: 100%; border: none; margin: 0; padding: 0;" src="https://bwsecondary.ddns.net/news/"></iframe>
 		</div>
-		<div id="mods-content" class="content">
+		<div id="mods-content" class="content" style="overflow: auto; max-height: 80%">
 			<div class="container" id="my-mods-list">
 				<h2>My Mods</h2>
 				<a href="javascript:switchTo('add-mod')"><button class="btn btn-outline-primary btn-block mb-2">Download mods</button></a>
 				<p v-if="mods.length === 0" class="text-muted">It looks like you have no mods installed.</p>
 				<div>
-					<div class="card" v-for="mod of mods">
+					<div class="card mb-4" v-for="mod of mods">
 						<div class="row g-0">
-							<div class="col-md-4">
+							<div class="col-md-2">
 								<img src="https://bwsecondary.ddns.net/img/bw2.webp" class="card-img-top">
 							</div>
 							<div class="col-md-8">
 								<div class="card-body">
 									<h4 class="card-title">{{ mod.name }}</h4>
 									<h6 class="card-subtitle mb-2 text-muted">v{{ mod.version }}</h6>
-									<button class="btn btn-danger">Uninstall</button>
+									<!-- TODO: implement this feature -->
+									<!-- <button class="btn btn-danger">Uninstall</button> -->
 								</div>
 							</div>
 						</div>

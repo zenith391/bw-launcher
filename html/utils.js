@@ -31,14 +31,16 @@ function appDataPath() {
 }
 
 function bwDocumentsPath() {
-	if (platform == "win32")
+	if (platform == "win32") {
 		return path.resolve(homePath() + "/Documents/blocksworld_develop");
-	else
-		return steamDataPath() + "/steamapps/compatdata/" + blocksworldSteamAppId + "/pfx/drive_c/users/steamuser/My Documents/blocksworld_develop"
+	} else {
+		const username = homePath().split(path.sep)[2];
+		return path.join(appDataPath(), "Blocksworld Launcher/.wine/drive_c/users/" + username + "/Documents/blocksworld_develop");
+	}
 }
 
 function bwUserPath() {
-	return path.resolve(bwDocumentsPath() + "/user_76561198427579933"); // TODO: auto-detect
+	return path.resolve(bwDocumentsPath() + "/user_1000"); // TODO: auto-detect
 }
 
 export { homePath, steamDataPath, appDataPath, bwDocumentsPath, bwUserPath, blocksworldSteamAppId };

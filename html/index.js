@@ -23,7 +23,7 @@ const extract = require("extract-zip");
 const querystring = require("querystring");
 const child_process = require("child_process");
 const { ipcRenderer, shell } = require("electron");
-import { steamDataPath, appDataPath, bwDocumentsPath, blocksworldSteamAppId } from "./utils.js";
+import { steamDataPath, appDataPath, bwDocumentsPath, blocksworldSteamAppId, bwUserPath } from "./utils.js";
 import { createApp } from './js/vue.esm-browser.js'
 
 const platform = process.platform;
@@ -152,7 +152,11 @@ function launchBlocksworld() {
 			} else if (platform == "linux") {
 				$("#standaloneLaunching").modal();
 				setTimeout(() => { $("#standaloneLaunching").modal("hide") }, 10000);
-				child_process.exec("nohup wine \"" + bwPath + "/Blocksworld/Blocksworld.exe\"", function(err) {
+				child_process.exec("nohup wine \"" + bwPath + "/Blocksworld/Blocksworld.exe\"", {
+					"env": Object.assign({
+						"WINEPREFIX": bwPath + "/.wine",
+					}, process.env),
+				}, function(err) {
 					if (err !== "" && err !== undefined && err !== null) {
 						shell.beep();
 						alert("Error: " + err);
@@ -293,9 +297,17 @@ async function downloadMod(version) {
 	if (mod["install_method"] == 0) {
 		installPath = bwPath + "/Blocksworld/Blocksworld_Data/Managed";
 	} else {
-		console.log(bwDocumentsPath());
-		alert("Please wait for a future version of Blocksworld Launcher to install this type of mod !");
-		return;
+		if (mod["install_method"] == 1) { // C# mod
+			installPath = bwUserPath() + "/user/mods/";
+		} else if (mod["install_method"] == 2) { // Lua mod
+			installPath = bwUserPath() + "/user/lua_mods/";
+		} else {
+			alert("Please wait for a future version of Blocksworld Launcher to install this type of mod !");
+			return;
+		}
+		console.log(installPath);
+		//return;
+		//return;
 	}
 
 	document.getElementById("downloaded-text").innerText = "Downloading " + mod.name + ", please wait..";
