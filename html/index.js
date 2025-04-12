@@ -24,19 +24,128 @@ const querystring = require("querystring");
 const child_process = require("child_process");
 const { ipcRenderer, shell } = require("electron");
 import { steamDataPath, appDataPath, bwDocumentsPath, blocksworldSteamAppId, bwUserPath } from "./utils.js";
-import { createApp } from './js/vue.esm-browser.js'
+import { createApp } from './js/vue.esm-browser.js';
+import { animate, utils, createSpring } from './js/anime.esm.min.js';
 
 const platform = process.platform;
 let launchPlatform = "self";
 let currentMod = null;
-let installedMods = null;
 
 const steamPath = steamDataPath();
 const steamBlocksworldPath = steamPath + "/steamapps/common/Blocksworld";
 const bwPath = appDataPath() + "/Blocksworld Launcher";
-if (fs.existsSync(bwPath + "/mods.json")) {
-	installedMods = JSON.parse(fs.readFileSync(bwPath + "/mods.json"));
+
+class ModManager {
+	constructor() {
+		this.installedMods = {"mods": []}
+	}
+
+	async load() {
+		if (fs.existsSync(bwPath + "/mods.json")) {
+			this.installedMods = JSON.parse(fs.readFileSync(bwPath + "/mods.json"));
+		} else {
+			this.installedMods = {"mods": []}
+		}
+	}
+
+	async save() {
+		// TODO
+		fs.writeFileSync(bwPath + "/mods.json", JSON.stringify(this.installedMods));
+	}
+
+	getMod(id, version) {
+		for (const mod of this.installedMods.mods) {
+			if (mod.id == id) {
+				return mod;
+			}
+		}
+		return null;
+	}
+
+	setMod(id, newMod) {
+		let replaced = false;
+		for (const key in this.installedMods.mods) {
+			const mod = this.installedMods.mods[key];
+			if (mod.id == id) {
+				this.installedMods.mods[key] = newMod;
+				replaced = true;
+			}
+		}
+		if (!replaced) {
+			this.installedMods.mods.push(newMod);
+		}
+	}
+
+	async downloadMod(modId, version) {
+		const url = "https://bwsecondary.ddns.net/download.php?mod=" + modId + "&version=" + version;
+		const modResp = await fetch("https://bwsecondary.ddns.net/api/mods/" + modId);
+		const mod = await modResp.json();
+		console.log(mod);
+
+		let installPath = "";
+		if (mod["install_method"] == 0) {
+			installPath = bwPath + "/Blocksworld/Blocksworld_Data/Managed";
+		} else {
+			if (mod["install_method"] == 1) { // C# mod
+				installPath = bwUserPath() + "/user/mods/";
+			} else if (mod["install_method"] == 2) { // Lua mod
+				installPath = bwUserPath() + "/user/lua_mods/";
+			} else {
+				alert("Please wait for a future version of Blocksworld Launcher to install this type of mod !");
+				return;
+			}
+			console.log("Installation path: " + installPath);
+		}
+
+		document.getElementById("downloaded-text").innerText = "Downloading " + mod.name + ", please wait..";
+		$("#downloadModal").modal();
+		https.get(url, function (res) {
+			let length = parseInt(res.headers["content-length"]);
+			if (length === undefined || isNaN(length)) length = 1;
+
+			let out = fs.createWriteStream(bwPath + "/download.zip");
+			let progressBar = document.getElementById("download-progress");
+			let downloaded = 0;
+
+			res.on("data", async function (data) {
+				out.write(data);
+				downloaded += data.length;
+				requestAnimationFrame(function() {
+					var percent = (downloaded / length) * 100;
+					ipcRenderer.send("update-download", percent);
+					progressBar.style.width = Math.floor(percent) + "%";
+					progressBar.innerText = Math.floor(downloaded/1024) + "KiB / " + Math.floor(length/1024) + "KiB";
+				});
+			});
+
+			res.on("end", function() {
+				ipcRenderer.send("update-done");
+				out.uncork();
+				out.end();
+				(async function() {
+					document.getElementById("downloaded-text").innerText = "Installing " + mod.name + ", please wait..";
+					await extract(bwPath + "/download.zip", { dir: installPath, onEntry: function(entry, zipFile) {
+						progressBar.innerText = entry.fileName;
+					}});
+					let modJson = mod;
+					modJson.id = parseInt(modId);
+					modJson.version = version;
+
+					modManager.setMod(modJson.id, modJson)
+					await modManager.save();
+					loadMod(modId);
+					fs.unlinkSync(bwPath + "/download.zip");
+					setTimeout(function() {
+						$("#downloadModal").modal("hide");
+					}, 500);
+				})();
+			});
+		});
+	}
 }
+
+let modManager = new ModManager();
+await modManager.load();
 
 let userAuthToken = null;
 let loginCallback = null;
@@ -98,18 +207,10 @@ function launchBlocksworld() {
 							"id": 0,
 							"version": "0.4.1"
 						};
-						let replaced = false;
-						for (key in installedMods.mods) {
-							if (installedMods.mods[key].id == 0) {
-								installedMods.mods[key] = modJson;
-								replaced = true;
-								break;
-							}
-						}
-						if (!replaced) installedMods.mods.push(modJson);
+						modManager.setMod(0, modJson);
 						if (currentMod && currentMod.id == 0)
 							loadMod(0);
-						fs.writeFileSync(bwPath + "/mods.json", JSON.stringify(installedMods));
+						await modManager.save();
 						$("#downloadModal").modal("hide");
 						document.getElementById("player").innerText = "Launching via account";
 						document.getElementById("play-button").innerText = "Play";
@@ -121,12 +222,10 @@ function launchBlocksworld() {
 		}
 	} else if (launchPlatform == "self") {
 		let hasExdilin = false;
-		for (const key in installedMods.mods) {
-			let mod = installedMods.mods[key];
-			if (mod.id == 0) {
-				if (mod.version != "0.4.1") {
-					hasExdilin = true;
-				}
+		{
+			const exdilinMod = modManager.getMod(0);
+			if (exdilinMod.version != "0.4.1") {
+				hasExdilin = true;
 			}
 		}
 		if (!hasExdilin) {
@@ -287,81 +386,8 @@ function createBw2Account() {
 }
 global.createBw2Account = createBw2Account
 
-async function downloadMod(version) {
-	const url = "https://bwsecondary.ddns.net/download.php?mod=" + currentMod + "&version=" + version;
-	const modResp = await fetch("https://bwsecondary.ddns.net/api/mods/" + currentMod);
-	const mod = await modResp.json();
-	console.log(mod);
 
-	let installPath = "";
-	if (mod["install_method"] == 0) {
-		installPath = bwPath + "/Blocksworld/Blocksworld_Data/Managed";
-	} else {
-		if (mod["install_method"] == 1) { // C# mod
-			installPath = bwUserPath() + "/user/mods/";
-		} else if (mod["install_method"] == 2) { // Lua mod
-			installPath = bwUserPath() + "/user/lua_mods/";
-		} else {
-			alert("Please wait for a future version of Blocksworld Launcher to install this type of mod !");
-			return;
-		}
-		console.log(installPath);
-		//return;
-		//return;
-	}
 
-	document.getElementById("downloaded-text").innerText = "Downloading " + mod.name + ", please wait..";
-	$("#downloadModal").modal();
-	https.get(url, function (res) {
-		let length = parseInt(res.headers["content-length"]);
-		if (length === undefined || isNaN(length)) length = 1;
-
-		let out = fs.createWriteStream(bwPath + "/download.zip");
-		let progressBar = document.getElementById("download-progress");
-		let downloaded = 0;
-
-		res.on("data", async function (data) {
-			out.write(data);
-			downloaded += data.length;
-			requestAnimationFrame(function() {
-				var percent = (downloaded / length) * 100;
-				ipcRenderer.send("update-download", percent);
-				progressBar.style.width = Math.floor(percent) + "%";
-				progressBar.innerText = Math.floor(downloaded/1024) + "KiB / " + Math.floor(length/1024) + "KiB";
-			});
-		});
-
-		res.on("end", function() {
-			ipcRenderer.send("update-done");
-			out.uncork();
-			out.end();
-			(async function() {
-				document.getElementById("downloaded-text").innerText = "Installing " + mod.name + ", please wait..";
-				await extract(bwPath + "/download.zip", { dir: installPath, onEntry: function(entry, zipFile) {
-					progressBar.innerText = entry.fileName;
-				}});
-				let modJson = mod;
-				modJson.id = parseInt(currentMod);
-				modJson.version = version;
-				let replaced = false;
-				for (const key in installedMods.mods) {
-					if (installedMods.mods[key].id == currentMod) {
-						installedMods.mods[key] = modJson;
-						replaced = true;
-						break;
-					}
-				}
-				if (!replaced) installedMods.mods.push(modJson);
-				loadMod(currentMod);
-				fs.writeFileSync(bwPath + "/mods.json", JSON.stringify(installedMods));
-				fs.unlinkSync(bwPath + "/download.zip");
-				setTimeout(function() {
-					$("#downloadModal").modal("hide");
-				}, 500);
-			})();
-		});
-	});
-}
 
 // Front-End
 
@@ -402,14 +428,6 @@ async function loadMod(id) {
 global.loadMod = loadMod;
 
 async function loadMods() {
-	if (!fs.existsSync(bwPath + "/mods.json")) {
-		installedMods = {"mods":[]};
-		fs.writeFileSync(bwPath + "/mods.json", JSON.stringify({
-			"mods": []
-		}));
-		loadMyMods();
-	}
-
 	let response = await fetch("https://bwsecondary.ddns.net/api/mods/list");
 	if (response.ok) {
 		let json = await response.json();
@@ -424,7 +442,8 @@ async function loadMods() {
 			pill.appendChild(pillText);
 
 			let element = document.createElement("a");
-			let elementText = document.createTextNode(mod.name);
+			let elementText = document.createElement("span");
+			elementText.innerHTML = mod.name; // the name is sanitized server-side
 
 			element.appendChild(elementText);
 			element.appendChild(pill);
@@ -440,15 +459,24 @@ async function loadMods() {
 }
 
 async function loadMyMods() {
-	createApp({
+	const app = createApp({
 		data() {
 			return {
-				mods: installedMods.mods,
+				mods: modManager.installedMods.mods,
 			};
+		},
+		methods: {
+			reloadMods() {
+				this.mods = modManager.installedMods.mods;
+				this.$forceUpdate();
+			}
 		}
 	}).mount("#my-mods-list");
+	setInterval(() => {
+		app.reloadMods()
+	}, 1000);
 }
-if (installedMods !== null) loadMyMods();
+loadMyMods();
 
 window.addEventListener("DOMContentLoaded", function() {
 	if (fs.existsSync(steamBlocksworldPath) && false) {
@@ -507,10 +535,10 @@ window.addEventListener("DOMContentLoaded", function() {
 	}
 });*/
 
-window.onmessage = (e) => {
+window.onmessage = async (e) => {
 	const split = e.data.split(",");
 	if (split[0] == "download") {
-		downloadMod(split[1]);
+		await modManager.downloadMod(currentMod, split[1]);
 	}
 };
 
@@ -544,3 +572,34 @@ if (date.getDate() == 25 && date.getMonth() == 11) { // 25th December
 	const suffix = digit == 1 ? "st" : (digit == 2 ? "nd" : (digit == 3 ? "rd" : "th"));
 	dateText.innerText = "Happy Halloween and happy " + no + suffix + " birthday BW2";
 }
+
+// Cosmetics
+animate(".navbar-brand", {
+	scale: [
+		{ from: .9, to: 1, duration: 750, ease: "inOut(3)" }
+	],
+	composition: "blend",
+	duration: 750,
+	alternate: true,
+	loop: true,
+})
+
+const [ $brand ] = utils.$('.navbar-brand');
+$brand.addEventListener("mouseenter", () => animate($brand, {
+	composition: "blend",
+	scale: 1.5,
+	duration: 350,
+}));
+$brand.addEventListener("mouseleave", () => animate($brand, {
+	composition: "blend",
+	scale: 1.0,
+	duration: 250
+}));
+$brand.addEventListener("click", () => animate($brand, {
+	rotate: {
+		from: '0turn',
+		to: '1turn',
+		ease: "inOut(3)",
+		duration: 500,
+	},
+}));

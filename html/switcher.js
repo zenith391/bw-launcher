@@ -10,6 +10,9 @@ function switchTo(id) {
 	if (link != null) {
 		link.classList.add("active");
 	}
+	if (id == "index") {
+		document.querySelector("#index-iframe").src = "https://bwsecondary.ddns.net/news";
+	}
 }
 
 function isActivated(id) {
