@@ -74,7 +74,7 @@ ipcMain.on("open-register-window", function () {
     modal: true,
     show: false,
     webPreferences: {
-      preload: path.join(app.getAppPath(), "preload_register.js"),
+      preload: path.join(__dirname, "preload_register.js"),
     },
   });
   registerWin.loadURL("https://bwsecondary.ddns.net/register.php");
