@@ -5,11 +5,18 @@
   "homepage": "https://bwsecondary.ddns.net/bw.php",
   "author": "zenith391",
   "license": "MIT",
-  "main": "main.js",
+  "main": "./out/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "package": "electron-builder --dir",
-    "make": "electron-builder"
+    "format": "prettier --write src",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "postinstall": "electron-builder install-app-deps",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:all": "npm run build && electron-builder"
   },
   "keywords": [
     "launcher",
@@ -18,18 +25,23 @@
   ],
   "devDependencies": {
     "electron": "^15.0.0",
-    "electron-builder": "^22.13.1"
+    "electron-builder": "^22.13.1",
+    "electron-vite": "^3.1.0",
+    "prettier": "^3.5.3"
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
     "electron-updater": "^4.3.9",
     "extract-zip": "^2.0.1",
-    "rpmbuild": "0.0.23"
+    "rpmbuild": "0.0.23",
+    "three": "^0.175.0"
   },
   "build": {
     "appId": "io.github.zenith391.bw-launcher",
     "productName": "Blocksworld Launcher",
-    "files": ["!threejs"],
+    "files": [
+      "!threejs"
+    ],
     "win": {
       "target": "portable"
     },
