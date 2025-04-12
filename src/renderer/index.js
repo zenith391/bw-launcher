@@ -32,6 +32,7 @@ import {
 } from "./utils.js";
 import { createApp } from "./js/vue.esm-browser.js";
 import { animate, utils, createSpring } from "./js/anime.esm.min.js";
+import { Modal } from "bootstrap";
 
 const platform = process.platform;
 let launchPlatform = "self";
@@ -459,14 +460,16 @@ global.createBw2Account = createBw2Account;
 
 // Front-End
 
-function openLoginModal(cb) {
+async function openLoginModal(cb) {
   if (cb === undefined) cb = null;
+  const myModal = new Modal(document.querySelector("#loginModal"), {})
   loginCallback = cb;
   document.getElementById("login-error-alert").style.display = "none";
   document.getElementById("login-error").innerText = "";
   document.getElementById("login-username").value = "";
   document.getElementById("login-password").value = "";
-  $("#loginModal").modal();
+  // $("#loginModal").modal();
+  await myModal.show();
 }
 global.openLoginModal = openLoginModal;
 

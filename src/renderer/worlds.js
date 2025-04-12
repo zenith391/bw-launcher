@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SVGRenderer } from "three/addons/renderers/SVGRenderer.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { bwUserPath } from "./utils.js";
 import colorsUrl from "./colors.json?url";
